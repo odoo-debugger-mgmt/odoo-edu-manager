@@ -1,0 +1,57 @@
+<!-- Shared by shell.html and terminal.html: an xterm.js pane wired to a
+     WebSocket PTY bridge. Pass `ws_url` (a url_for(...) result — flask-sock
+     already returns a complete ws://host/... URL, no manual prefixing). -->
+<div id="terminal" class="terminal-surface"></div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+<script>
+const status = document.getElementById('conn-status');
+const term = new Terminal({
+  cursorBlink: true,
+  fontSize: 13,
+  theme: { background: '#1e1e1e' },
+});
+const fitAddon = new FitAddon.FitAddon();
+term.loadAddon(fitAddon);
+term.open(document.getElementById('terminal'));
+fitAddon.fit();
+
+const ws = new WebSocket("{{ ws_url }}");
+ws.binaryType = 'arraybuffer';
+
+function sendResize() {
+  ws.readyState === WebSocket.OPEN &&
+    ws.send('\x01RESIZE:' + term.cols + ',' + term.rows);
+}
+
+ws.onopen = () => {
+  status.textContent = 'connected';
+  status.className = 'conn-status conn-status--live';
+  sendResize();
+};
+ws.onclose = () => {
+  status.textContent = 'disconnected';
+  status.className = 'conn-status conn-status--down';
+  term.write('\r\n\x1b[31m[session closed]\x1b[0m\r\n');
+};
+ws.onerror = () => {
+  status.textContent = 'error';
+  status.className = 'conn-status conn-status--down';
+};
+ws.onmessage = (e) => {
+  term.write(typeof e.data === 'string' ? e.data : new Uint8Array(e.data));
+};
+
+term.onData((data) => {
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(data);
+  }
+});
+
+window.addEventListener('resize', () => {
+  fitAddon.fit();
+  sendResize();
+});
+</script>

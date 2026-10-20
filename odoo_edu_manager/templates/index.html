@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Instances</h1>
+    <p>Docker-based Odoo instances this app manages — each with its own port, database and addons.</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-primary" href="{{ url_for('new_instance_form') }}">+ New instance</a>
+  </div>
+</div>
+
+{% if not instances %}
+<div class="table-card">
+  <div class="empty-state">
+    <p>No instances yet.</p>
+    <a class="btn btn-primary" href="{{ url_for('new_instance_form') }}">+ New instance</a>
+  </div>
+</div>
+{% else %}
+<div class="table-card">
+<table>
+  <tr>
+    <th>Name</th><th>Version</th><th>Extras</th><th>URL</th><th>DB</th><th>Status</th><th>Restore</th><th class="col-actions">Actions</th>
+  </tr>
+  {% for i in instances %}
+  <tr>
+    <td>{{ i.name }}</td>
+    <td>{{ i.version }}</td>
+    <td>
+      {% if i.enterprise %}<span class="pill pill-enterprise" title="Odoo Enterprise addons are mounted in this instance"><span class="pill-dot"></span>Enterprise</span>{% else %}<span class="extras-empty">—</span>{% endif %}
+    </td>
+    <td>{% if i.port %}<a href="{{ instance_url(i) }}" target="_blank">{{ instance_url(i)[7:] }}</a>{% else %}-{% endif %}</td>
+    <td>{{ i.db_name }}</td>
+    <td><span class="status-{{ i.status }}">{{ i.status }}</span></td>
+    <td class="restore-cell">{{ i.restore or '' }}</td>
+    <td class="col-actions">
+      <div class="actions">
+        {% if i.status == 'running' %}
+        <form class="inline" method="post" action="{{ url_for('stop_instance', name=i.name) }}"><button class="btn btn-sm">Stop</button></form>
+        {% else %}
+        <form class="inline" method="post" action="{{ url_for('start_instance', name=i.name) }}"><button class="btn btn-sm">Start</button></form>
+        {% endif %}
+        {% if i.status == 'running' %}
+        <a class="btn btn-sm btn-primary" href="{{ url_for('connect_as_admin', name=i.name, path='/web?debug=1') }}" target="_blank" data-connect-instance="{{ i.name }}"
+           title="Opens logged in as admin with Odoo's own developer mode on">Open</a>
+        {% else %}
+        <a class="btn btn-sm btn-primary is-disabled" href="{{ url_for('connect_as_admin', name=i.name) }}" target="_blank" aria-disabled="true" title="Start the instance first">Open</a>
+        {% endif %}
+        <a class="btn btn-sm" href="{{ url_for('edit_instance_form', name=i.name) }}">Edit</a>
+        <details class="menu">
+          <summary class="btn btn-sm btn-icon" title="More actions">&hellip;</summary>
+          <div class="menu-panel">
+            <a href="{{ url_for('instance_logs', name=i.name) }}">Logs</a>
+            <a href="{{ url_for('instance_shell', name=i.name) }}" target="_blank">Shell</a>
+            <a href="{{ url_for('instance_terminal', name=i.name) }}" target="_blank">Terminal</a>
+            <a href="{{ url_for('instance_users', name=i.name) }}">Users</a>
+            <a href="{{ url_for('open_vscode', name=i.name, target='vscode') }}">VS Code</a>
+            <a href="{{ url_for('open_vscode', name=i.name, target='code-server') }}" target="_blank">code-server</a>
+            {% if i.restore and i.restore.startswith('error') %}
+            <form method="post" action="{{ url_for('retry_restore', name=i.name) }}" onsubmit="return confirm('Retry restore for {{ i.name }}? This drops its current database and restores the last uploaded backup into it again.');">
+              <button type="submit">Retry restore</button>
+            </form>
+            {% endif %}
+            <div class="menu-divider"></div>
+            <form method="post" action="{{ url_for('remove_instance', name=i.name) }}" onsubmit="return confirm('Remove instance {{ i.name }}? The container is deleted' + (this.remove_volumes.checked ? ' along with its data volume (filestore) — this cannot be undone.' : ', but its data volume is kept.'));">
+              <label class="menu-check"><input type="checkbox" name="remove_volumes">also delete data</label>
+              <button type="submit" class="menu-item--danger">Remove</button>
+            </form>
+          </div>
+        </details>
+      </div>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% endif %}
+
+<script>
+  // Auto-refresh the page while any restore is still in flight, so the
+  // Restore column and Retry-restore button update without a manual reload.
+  // Anything non-empty that isn't a final state (done/error) means a restore
+  // is still actively moving through its steps (extracting, creating the
+  // database, loading the dump, copying the filestore, ...).
+  const active = Array.from(document.querySelectorAll('.restore-cell'))
+    .some(td => { const t = td.textContent.trim(); return t && t !== 'done' && !t.startsWith('error'); });
+  if (active) {
+    setTimeout(() => location.reload(), 3000);
+  }
+</script>
+{% endblock %}

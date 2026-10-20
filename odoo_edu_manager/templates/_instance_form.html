@@ -1,0 +1,166 @@
+<!-- Shared by new.html and edit.html. Pass `editing` (bool) plus:
+     create: versions, pulled, default_version, suggested_port
+     edit:   versions, pulled, instance
+     Field names must keep matching what app.py's create_instance /
+     edit_instance read from request.form — see the routes in app.py. -->
+<form method="post" action="{{ form_action }}" enctype="multipart/form-data">
+  <fieldset class="form-section">
+    <legend>Basics</legend>
+
+    {% if not editing %}
+    <div class="field">
+      <label>Instance name</label>
+      <input type="text" name="name" required pattern="[a-zA-Z0-9_-]+" placeholder="e.g. client-a">
+      <div class="hint">Used for the container name and default database name.</div>
+    </div>
+    {% endif %}
+
+    <div class="field">
+      <label>Odoo version</label>
+      <input type="text" id="version-input" name="version" required placeholder="e.g. 17.0"
+             value="{{ instance.version if editing else default_version }}">
+      <div class="version-tags" id="version-tags">
+        {% for v in versions %}
+        <button type="button" class="version-tag{{ ' pulled' if v in pulled else '' }}" data-version="{{ v }}">{{ v }}</button>
+        {% endfor %}
+      </div>
+      <div class="hint">Click a version, or type any other one directly in the field above. Filled/purple tags are already pulled locally; outlined ones get pulled automatically {{ 'on save' if editing else 'on create' }}.{% if editing %} Use "Update available versions" on the New instance page to refresh this list from Docker Hub.{% endif %}</div>
+    </div>
+  </fieldset>
+
+  <fieldset class="form-section">
+    <legend>Addons</legend>
+    <div class="field">
+      <label>Addons folders (host paths)</label>
+      <textarea id="addons_paths" name="addons_paths" rows="3"
+                placeholder="/home/you/work/custom-addons/school-demo&#10;/home/you/work/custom-addons/exercises">{{ instance.addons_paths | join('\n') if editing else '' }}</textarea>
+      <button type="button" class="btn btn-browse" onclick="openFolderBrowser('addons_paths', '', true)">Browse&hellip;</button>
+      <div class="hint">One absolute path per line. Each is mounted separately and added to the container's addons-path. Leave blank for none. Each directory's <em>immediate</em> children must be actual Odoo modules (containing __init__.py + a manifest) — Odoo rejects a path otherwise, so point at the specific module folder, not a parent folder of unrelated project subfolders.</div>
+    </div>
+  </fieldset>
+
+  <fieldset class="form-section">
+    <legend>Enterprise</legend>
+    <div class="field">
+      <label class="checkbox-field">
+        <input type="checkbox" name="include_enterprise" {% if editing and instance.enterprise %}checked{% endif %}>
+        Include Odoo Enterprise
+      </label>
+      <div class="hint">Off by default: a new instance is Community. Ticking it clones odoo/enterprise (branch matching the selected version) over SSH the first time it's needed for that version, then reuses the cached clone for later instances &mdash; which needs a GitHub SSH key with access to that private repo, or a local Enterprise folder below.</div>
+    </div>
+
+    <div class="field">
+      <label>Enterprise folder (host path) &mdash; optional</label>
+      <input type="text" id="enterprise_path" name="enterprise_path"
+             value="{{ instance.enterprise_path if editing else '' }}"
+             placeholder="leave blank to clone odoo/enterprise over SSH">
+      <button type="button" class="btn btn-browse" onclick="openFolderBrowser('enterprise_path')">Browse&hellip;</button>
+      <div class="hint">Use a local Odoo Enterprise checkout instead of cloning from GitHub &mdash; for when you don't have SSH access to the private repo. If the folder you pick is a git repo you can choose a branch, and that branch gets copied out and used (same as for addons folders above), leaving your working copy untouched. Mounted read-only. Only used when "Include Odoo Enterprise" is ticked.</div>
+    </div>
+  </fieldset>
+
+  <fieldset class="form-section">
+    <legend>Repository revisions</legend>
+    <p class="hint">Leave blank to track each repo's branch as normal — updated on demand from the Edit page's Refresh button, never silently. Enter a commit sha to pin to that exact revision instead, regardless of what the branch does afterward.</p>
+
+    <div class="field" id="odoo-core-revision-field">
+      <label>Odoo core</label>
+      <input type="text" name="odoo_core_revision"
+             value="{{ (instance.odoo_core_revision if instance.odoo_core_revision != 'latest' else '') if editing else '' }}"
+             placeholder="latest" pattern="[0-9a-f]{7,40}">
+      <div class="hint" id="odoo-core-revision-hint">Only takes effect on: {{ core_revision_versions|join(', ') }}. Ignored for every other version — see Help.</div>
+    </div>
+
+    <div class="field">
+      <label>Enterprise</label>
+      <input type="text" name="enterprise_revision"
+             value="{{ (instance.enterprise_revision if instance.enterprise_revision != 'latest' else '') if editing else '' }}"
+             placeholder="latest" pattern="[0-9a-f]{7,40}">
+      <div class="hint">Ignored if using a local Enterprise folder above &mdash; that's your own checkout, not something this app pins.</div>
+    </div>
+
+    <div class="field">
+      <label>Design themes</label>
+      <input type="text" name="design_themes_revision"
+             value="{{ (instance.design_themes_revision if instance.design_themes_revision != 'latest' else '') if editing else '' }}"
+             placeholder="latest" pattern="[0-9a-f]{7,40}">
+    </div>
+  </fieldset>
+
+  <fieldset class="form-section">
+    <legend>Database</legend>
+
+    {% if not editing %}
+    <div class="field">
+      <label>Database backup (.zip) — optional</label>
+      <input type="file" name="backup_zip" accept=".zip">
+      <div class="hint">If provided, it's restored into the instance automatically once Odoo boots.</div>
+    </div>
+    {% endif %}
+
+    <div class="field">
+      <label>Database name{{ '' if editing else ' (optional)' }}</label>
+      <input type="text" name="db_name" value="{{ instance.db_name if editing else '' }}"
+             placeholder="{{ 'defaults to instance name' if not editing else '' }}">
+      {% if not editing %}
+      <div class="hint">If left blank and the backup above is a standard Odoo export (with a manifest.json), the original database's name is used automatically. Otherwise defaults to the instance name.</div>
+      {% endif %}
+    </div>
+
+    <div class="field">
+      <label>Port</label>
+      <input type="number" name="port" value="{{ instance.port if editing else suggested_port }}" required>
+      {% if not editing %}<div class="hint">Auto-suggested as the next free port. Override if needed.</div>{% endif %}
+    </div>
+  </fieldset>
+
+  <details class="form-section form-section-advanced">
+    <summary>Advanced</summary>
+    <div class="form-section-body">
+      <div class="field">
+        <label>Extra CLI arguments</label>
+        <textarea name="extra_args" rows="4"
+                  placeholder="-i pos_modifiers --limit-time-real 0 --limit-time-cpu 0 --max-cron-threads 0 --log-handler odoo.addons.base.models.ir_attachment:WARNING --with-demo --dev=all">{{ instance.extra_args if editing else '' }}</textarea>
+        <div class="hint">Any extra flags passed straight to the odoo command line — parsed like a shell command, so quote values containing spaces.</div>
+      </div>
+    </div>
+  </details>
+
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">{{ 'Save & recreate' if editing else 'Create instance' }}</button>
+    {% if editing %}<a class="btn" href="{{ url_for('index') }}">Cancel</a>{% endif %}
+  </div>
+</form>
+
+<script>
+  const versionInput = document.getElementById('version-input');
+  const versionTags = document.querySelectorAll('#version-tags .version-tag');
+
+  const coreRevisionVersions = {{ core_revision_versions | default([]) | tojson }};
+  const coreRevisionField = document.getElementById('odoo-core-revision-field');
+  const coreRevisionInput = coreRevisionField.querySelector('input');
+
+  function syncSelectedTag() {
+    versionTags.forEach(t => t.classList.toggle('selected', t.dataset.version === versionInput.value));
+  }
+
+  function syncCoreRevisionField() {
+    const supported = coreRevisionVersions.includes(versionInput.value);
+    coreRevisionField.classList.toggle('is-disabled', !supported);
+    coreRevisionInput.disabled = !supported;
+  }
+
+  function syncVersionDependent() {
+    syncSelectedTag();
+    syncCoreRevisionField();
+  }
+
+  versionTags.forEach(tag => {
+    tag.addEventListener('click', () => {
+      versionInput.value = tag.dataset.version;
+      syncVersionDependent();
+    });
+  });
+  versionInput.addEventListener('input', syncVersionDependent);
+  syncVersionDependent();
+</script>

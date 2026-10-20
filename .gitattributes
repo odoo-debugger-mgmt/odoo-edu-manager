@@ -1,0 +1,6 @@
+# Line endings the scripts depend on.
+# Bash cannot run a script saved with Windows line endings, and a .cmd file
+# is safest with them; git on Windows would otherwise decide for itself.
+*.sh  text eol=lf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf

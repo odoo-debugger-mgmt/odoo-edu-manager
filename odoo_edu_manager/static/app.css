@@ -1,0 +1,796 @@
+/* Odoo Edu Manager — design tokens + components.
+ *
+ * Every page uses these classes and nothing else — no per-page inline
+ * <style> blocks, no inline style="" attributes for anything colored or
+ * spaced. Change a token here and the whole app follows; add a page and
+ * it inherits the same look for free. That's the whole point of this
+ * file existing on its own rather than living in base.html.
+ */
+
+/* ---------------------------------------------------------------------
+ * Tokens
+ * ------------------------------------------------------------------ */
+:root {
+  color-scheme: light;
+
+  --color-bg: #ffffff;
+  --color-bg-subtle: #f7f6f7;
+  --color-surface: #ffffff;
+  --color-border: #e2e2e2;
+  --color-border-strong: #ccc;
+  --color-text: #1a1a1a;
+  --color-text-muted: #666;
+  --color-text-faint: #999;
+
+  --color-primary: #714b67;
+  --color-primary-hover: #5f3f56;
+  --color-primary-bg: #f1e9ef;
+
+  --color-success: #16794f;
+  --color-success-bg: #e6f4ec;
+  --color-success-border: #bfe3cf;
+
+  --color-danger: #a33;
+  --color-danger-bg: #fbeaea;
+  --color-danger-border: #f0c4c4;
+
+  --color-warning: #8a5a00;
+  --color-warning-bg: #fff3cd;
+  --color-warning-border: #ffe69c;
+
+  --color-info: #3a6ea5;
+  --color-info-bg: #eaf1fa;
+  --color-info-border: #cfe0f0;
+
+  --color-code-bg: #1e1e1e;
+  --color-code-text: #ddd;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2.25rem;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.25);
+}
+
+/* Dark tokens apply in two cases: the OS/browser prefers dark and the
+ * page hasn't been explicitly set to light (the :not() guard), or the
+ * page has been explicitly set to dark regardless of the OS. Same
+ * variable list both times — CSS can't OR a media query with an
+ * attribute selector in one rule, so this duplication is the actual
+ * mechanism, not an oversight. `data-theme` is set by the toggle in
+ * the top bar (see base.html); no attribute at all means "follow the
+ * OS", which is the default for every visitor who never touches it. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --color-bg: #17171b;
+    --color-bg-subtle: #1e1e23;
+    --color-surface: #212127;
+    --color-border: #34343c;
+    --color-border-strong: #46464f;
+    --color-text: #e9e9eb;
+    --color-text-muted: #a4a4ad;
+    --color-text-faint: #77777f;
+
+    --color-primary: #c496b8;
+    --color-primary-hover: #d3aac7;
+    --color-primary-bg: #33232f;
+
+    --color-success: #52c98d;
+    --color-success-bg: #163527;
+    --color-success-border: #1f5138;
+
+    --color-danger: #e28a8a;
+    --color-danger-bg: #3a1f1f;
+    --color-danger-border: #5a2e2e;
+
+    --color-warning: #e2bd66;
+    --color-warning-bg: #3a2f10;
+    --color-warning-border: #59481a;
+
+    --color-info: #86b6e6;
+    --color-info-bg: #182b3a;
+    --color-info-border: #234159;
+
+    --color-code-bg: #0e0e11;
+    --color-code-text: #d4d4d4;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.6);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-bg: #17171b;
+  --color-bg-subtle: #1e1e23;
+  --color-surface: #212127;
+  --color-border: #34343c;
+  --color-border-strong: #46464f;
+  --color-text: #e9e9eb;
+  --color-text-muted: #a4a4ad;
+  --color-text-faint: #77777f;
+
+  --color-primary: #c496b8;
+  --color-primary-hover: #d3aac7;
+  --color-primary-bg: #33232f;
+
+  --color-success: #52c98d;
+  --color-success-bg: #163527;
+  --color-success-border: #1f5138;
+
+  --color-danger: #e28a8a;
+  --color-danger-bg: #3a1f1f;
+  --color-danger-border: #5a2e2e;
+
+  --color-warning: #e2bd66;
+  --color-warning-bg: #3a2f10;
+  --color-warning-border: #59481a;
+
+  --color-info: #86b6e6;
+  --color-info-bg: #182b3a;
+  --color-info-border: #234159;
+
+  --color-code-bg: #0e0e11;
+  --color-code-text: #d4d4d4;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.6);
+}
+
+/* ---------------------------------------------------------------------
+ * Reset & base
+ * ------------------------------------------------------------------ */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { background: var(--color-bg); }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+a { color: var(--color-primary); }
+a:hover { color: var(--color-primary-hover); }
+
+h1, h2, h3 { line-height: 1.25; color: var(--color-text); }
+h1 { font-size: 1.35rem; margin: 0; }
+h2 {
+  font-size: 1.05rem;
+  margin: var(--space-6) 0 var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+h3 { font-size: 0.92rem; margin: var(--space-4) 0 var(--space-2); }
+
+pre {
+  background: var(--color-code-bg);
+  color: var(--color-code-text);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+}
+
+code {
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85em;
+  font-family: var(--font-mono);
+}
+
+pre code { background: none; border: none; padding: 0; }
+
+/* ---------------------------------------------------------------------
+ * Layout
+ * ------------------------------------------------------------------ */
+.page-content {
+  max-width: 1150px;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4) var(--space-6);
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.page-header h1 { margin-bottom: var(--space-1); }
+.page-header p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.86rem;
+  max-width: 74ch;
+}
+
+.page-actions { display: flex; gap: var(--space-2); flex-shrink: 0; }
+
+/* ---------------------------------------------------------------------
+ * Top bar / nav
+ * ------------------------------------------------------------------ */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: 0.65rem var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--color-text);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.topbar-brand:hover { color: var(--color-text); }
+
+.topbar-mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  flex: none;
+}
+
+.topbar-nav { display: flex; gap: var(--space-1); flex-wrap: wrap; }
+
+.topbar-nav a {
+  padding: 0.4rem 0.65rem;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  text-decoration: none;
+  font-size: 0.84rem;
+  font-weight: 500;
+}
+
+.topbar-nav a:hover { background: var(--color-bg-subtle); color: var(--color-text); }
+
+.topbar-nav a.active {
+  color: var(--color-primary);
+  background: var(--color-primary-bg);
+  font-weight: 600;
+}
+
+.theme-toggle {
+  margin-left: auto;
+  min-width: 3.4rem;
+  color: var(--color-text-muted);
+}
+
+/* ---------------------------------------------------------------------
+ * Buttons
+ * ------------------------------------------------------------------ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.83rem;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btn:hover { background: var(--color-bg-subtle); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+
+.btn-primary { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.btn-primary:hover { background: var(--color-primary-hover); border-color: var(--color-primary-hover); }
+
+.btn-danger { color: var(--color-danger); border-color: var(--color-danger-border); }
+.btn-danger:hover { background: var(--color-danger-bg); }
+
+.btn-ghost { border-color: transparent; background: transparent; }
+.btn-ghost:hover { background: var(--color-bg-subtle); }
+
+.btn-sm { padding: 0.2rem 0.55rem; font-size: 0.75rem; }
+.btn-icon { padding: 0.35rem; width: 2rem; }
+.btn-browse { padding: 0.35rem 0.6rem; font-size: 0.8rem; margin-top: 0.25rem; }
+
+/* A <form> used only to carry one button/checkbox inline among links —
+ * e.g. Start/Stop next to the Open/Edit links on the dashboard. */
+form.inline { display: inline; }
+
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+.actions form { margin: 0; display: inline-flex; align-items: center; gap: 0.3rem; }
+.actions label { display: inline-flex; align-items: center; margin: 0; font-weight: normal; font-size: 0.78rem; white-space: nowrap; color: var(--color-text-muted); }
+
+/* ---------------------------------------------------------------------
+ * Tables
+ * ------------------------------------------------------------------ */
+.table-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+/* Rounds the table's own corners directly instead of clipping the card
+   around a square table (overflow:hidden used to do that) — the "..."
+   row menu is an absolutely-positioned dropdown, and clipping the card
+   silently clipped it too whenever it opened past the card's own
+   bottom edge, with nothing to scroll to reach the rest of it. Confirmed
+   directly: a menu opened near the bottom of a long instance list came
+   within a pixel of exactly that. */
+.table-card table tr:first-child > *:first-child { border-top-left-radius: var(--radius-lg); }
+.table-card table tr:first-child > *:last-child { border-top-right-radius: var(--radius-lg); }
+.table-card table tr:last-child > *:first-child { border-bottom-left-radius: var(--radius-lg); }
+.table-card table tr:last-child > *:last-child { border-bottom-right-radius: var(--radius-lg); }
+
+table { width: 100%; border-collapse: collapse; }
+
+th, td {
+  text-align: left;
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.85rem;
+  vertical-align: middle;
+}
+
+thead th {
+  color: var(--color-text-muted);
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--color-bg-subtle);
+}
+
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: var(--color-bg-subtle); }
+
+.table-card table { margin: 0; }
+
+.col-actions { text-align: right; white-space: nowrap; }
+
+/* Plain (non-card) tables used inside cards/pages, e.g. Docker info */
+table.plain { margin-top: var(--space-3); }
+table.plain th { background: none; text-transform: none; letter-spacing: normal; font-size: 0.8rem; width: 11rem; }
+
+/* ---------------------------------------------------------------------
+ * Status
+ * ------------------------------------------------------------------ */
+.status-running, .status-exited {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  font-size: 0.83rem;
+}
+
+.status-running::before, .status-exited::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+.status-running { color: var(--color-success); }
+.status-exited { color: var(--color-danger); }
+
+/* ---------------------------------------------------------------------
+ * Pills / badges
+ * ------------------------------------------------------------------ */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  margin-right: 0.3rem;
+  white-space: nowrap;
+}
+
+.pill-enterprise { background: var(--color-primary-bg); color: var(--color-primary); }
+.pill-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+
+.extras-empty { color: var(--color-text-faint); font-size: 0.8rem; }
+
+.badge {
+  display: inline-block;
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  padding: 0.05rem 0.4rem;
+  font-size: 0.75rem;
+}
+
+/* ---------------------------------------------------------------------
+ * Forms
+ * ------------------------------------------------------------------ */
+.field { margin-bottom: var(--space-4); }
+
+.field > label, label.field-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.83rem;
+  margin-bottom: 0.3rem;
+}
+
+.hint {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  margin-top: 0.3rem;
+  line-height: 1.5;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="password"],
+input[type="file"],
+select,
+textarea {
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  box-sizing: border-box;
+}
+
+textarea { font-family: var(--font-mono); }
+
+input:focus, select:focus, textarea:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+  border-color: var(--color-primary);
+}
+
+.checkbox-field { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.85rem; }
+.checkbox-field input { width: auto; flex: none; }
+
+.form-section {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.form-section > legend {
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0 0.4rem;
+}
+
+.form-section-advanced { padding: 0; }
+.form-section-advanced > summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: var(--space-3) var(--space-4);
+  list-style: none;
+}
+.form-section-advanced > summary::-webkit-details-marker { display: none; }
+.form-section-advanced > summary::before { content: "▸ "; color: var(--color-text-faint); }
+.form-section-advanced[open] > summary::before { content: "▾ "; }
+.form-section-advanced .form-section-body { padding: 0 var(--space-4) var(--space-4); }
+
+.form-actions { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
+
+/* ---------------------------------------------------------------------
+ * Flash messages
+ * ------------------------------------------------------------------ */
+.flash {
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 0.6rem;
+  font-size: 0.85rem;
+  border: 1px solid transparent;
+}
+
+.flash--success { background: var(--color-success-bg); border-color: var(--color-success-border); color: var(--color-success); }
+.flash--error { background: var(--color-danger-bg); border-color: var(--color-danger-border); color: var(--color-danger); }
+.flash--warning { background: var(--color-warning-bg); border-color: var(--color-warning-border); color: var(--color-warning); }
+.flash--info { background: var(--color-info-bg); border-color: var(--color-info-border); color: var(--color-info); }
+
+/* ---------------------------------------------------------------------
+ * Cards
+ * ------------------------------------------------------------------ */
+.card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  margin-bottom: var(--space-4);
+}
+
+.card > h2:first-child { margin-top: 0; }
+
+/* ---------------------------------------------------------------------
+ * Tabs (generic — the Logs page uses this)
+ * ------------------------------------------------------------------ */
+.tabs {
+  display: flex;
+  gap: 0.2rem;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: var(--space-3);
+  flex-shrink: 0;
+}
+
+.tab {
+  border: 1px solid transparent;
+  border-bottom: none;
+  background: none;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  margin-bottom: -1px;
+  font-family: inherit;
+}
+
+.tab:hover { background: var(--color-bg-subtle); }
+
+.tab.active {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+
+/* ---------------------------------------------------------------------
+ * Row-action menu (native <details>, no JS framework)
+ * ------------------------------------------------------------------ */
+.menu { position: relative; display: inline-block; }
+.menu > summary { list-style: none; cursor: pointer; }
+.menu > summary::-webkit-details-marker { display: none; }
+.menu[open] > summary { background: var(--color-bg-subtle); }
+
+.menu-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  min-width: 190px;
+  padding: 0.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.menu-panel a,
+.menu-panel button,
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 0.82rem;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.menu-panel a:hover, .menu-panel button:hover { background: var(--color-bg-subtle); }
+.menu-panel form { margin: 0; width: 100%; }
+.menu-item--danger { color: var(--color-danger); }
+.menu-divider { height: 1px; background: var(--color-border); margin: 0.3rem 0.2rem; }
+.menu-check { display: flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.6rem; font-size: 0.8rem; color: var(--color-text-muted); }
+.menu-check input { width: auto; }
+
+/* ---------------------------------------------------------------------
+ * Empty state
+ * ------------------------------------------------------------------ */
+.empty-state {
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.empty-state p { margin: 0 0 var(--space-3); }
+
+/* ---------------------------------------------------------------------
+ * Version picker (new/edit instance forms)
+ * ------------------------------------------------------------------ */
+.version-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+
+.version-tag {
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.version-tag:hover { background: var(--color-bg-subtle); }
+.version-tag.pulled { border-color: var(--color-primary-bg); background: var(--color-primary-bg); color: var(--color-primary); font-weight: 600; }
+.version-tag.selected, .version-tag.selected.pulled { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+
+/* ---------------------------------------------------------------------
+ * Modal (folder browser)
+ * ------------------------------------------------------------------ */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.open { display: flex; }
+
+.modal-box {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  width: 520px;
+  max-width: 92vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-header { padding: 0.9rem 1rem 0.6rem; border-bottom: 1px solid var(--color-border); }
+.modal-header h3 { margin: 0 0 0.4rem; }
+
+.modal-path {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: var(--color-bg-subtle);
+  padding: 0.4rem 0.5rem;
+  border-radius: var(--radius-md);
+  word-break: break-all;
+}
+
+.modal-list { list-style: none; margin: 0; padding: 0.3rem 0; overflow-y: auto; flex: 1; }
+.modal-list li { padding: 0.45rem 1rem; cursor: pointer; font-size: 0.88rem; }
+.modal-list li:hover { background: var(--color-primary-bg); }
+.modal-list li.up { color: var(--color-primary); font-weight: 600; }
+.modal-empty { padding: 0.6rem 1rem; color: var(--color-text-faint); font-size: 0.85rem; }
+
+.modal-branch-row { padding: 0.6rem 1rem; border-top: 1px solid var(--color-border); background: var(--color-bg-subtle); }
+.modal-branch-row label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--color-primary); margin-bottom: 0.3rem; }
+.modal-branch-row select { width: 100%; }
+.modal-branch-row label.inline-label { display: inline-flex; align-items: center; gap: 0.3rem; font-weight: 400; color: inherit; margin: 0 1.2rem 0 0; }
+.modal-branch-row input[type="text"] { font-weight: 400; }
+
+.modal-footer {
+  padding: 0.7rem 1rem;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.modal-copy-status { margin-right: auto; color: var(--color-text-muted); font-size: 0.78rem; }
+
+
+/* ---------------------------------------------------------------------
+ * Terminal surfaces (Shell / Terminal pages)
+ * ------------------------------------------------------------------ */
+.terminal-surface {
+  height: 70vh;
+  background: var(--color-code-bg);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+}
+
+.conn-status { font-size: 0.78rem; font-weight: normal; color: var(--color-text-muted); }
+.conn-status--live { color: var(--color-success); }
+.conn-status--down { color: var(--color-danger); }
+
+/* ---------------------------------------------------------------------
+ * Logs page
+ * ------------------------------------------------------------------ */
+.log-output { height: 65vh; overflow-y: auto; white-space: pre-wrap; }
+.autoscroll-field { font-weight: normal; margin: 0.4rem 0; }
+
+/* ---------------------------------------------------------------------
+ * Help page
+ * ------------------------------------------------------------------ */
+.help p, .help li { font-size: 0.88rem; line-height: 1.55; }
+.help ul { padding-left: 1.3rem; }
+
+/* ---------------------------------------------------------------------
+ * Loading feedback — top progress bar + busy submit buttons
+ * ------------------------------------------------------------------ */
+/* Shown for the duration of a form submit that causes a real page
+ * navigation (this app has no build step / SPA router, so there's no
+ * "done" event to animate to — the bar just needs to communicate
+ * "something is happening" until the response replaces the document).
+ * See base.html's document-level 'submit' listener. */
+.top-loading-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 0%;
+  background: var(--color-primary);
+  z-index: 200;
+  opacity: 0;
+  transition: width 4s cubic-bezier(0.1, 0.6, 0.2, 1), opacity 0.2s;
+  pointer-events: none;
+}
+.top-loading-bar.active { width: 70%; opacity: 1; }
+
+/* A submit button while its form's request is in flight. */
+.btn[data-busy] { opacity: 0.7; cursor: wait; }
+
+/* The spinner itself — sized in em so it drops into a button, a status
+ * line, or a big standalone overlay unchanged, and colored via
+ * currentColor so it matches whatever text color surrounds it (including
+ * white on .btn-primary) without a token of its own. */
+.spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.15em;
+  border: 0.15em solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spinner-spin 0.6s linear infinite;
+}
+
+@keyframes spinner-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Connect-type links (Open, Connect as admin, Connect as <user>) before
+ * the instance has been confirmed to actually answer HTTP — see
+ * dm.instance_ready() and the poller in base.html. Links, not <button>s,
+ * so disabling them is pointer-events, not the disabled attribute. */
+.is-disabled { pointer-events: none; opacity: 0.5; }

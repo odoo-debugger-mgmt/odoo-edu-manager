@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Shell — {{ name }} <span id="conn-status" class="conn-status"><span class="spinner"></span> connecting&hellip;</span></h1>
+    <p>A real <code>odoo shell -d {{ name }}</code> session running inside the instance's container — <code>env</code> is bound to that database, same as running it yourself via <code>docker exec</code>.</p>
+  </div>
+</div>
+
+{% set ws_url = url_for('instance_shell_ws', name=name) %}
+{% include "_terminal.html" %}
+{% endblock %}

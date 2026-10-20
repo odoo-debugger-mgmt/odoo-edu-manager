@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Terminal — {{ name }} <span id="conn-status" class="conn-status"><span class="spinner"></span> connecting&hellip;</span></h1>
+    <p>A plain <code>bash</code> session inside the instance's container — OS-level access (files, processes, ad-hoc commands), not the Odoo Python REPL (see <strong>Shell</strong> for that).</p>
+  </div>
+</div>
+
+{% set ws_url = url_for('instance_terminal_ws', name=name) %}
+{% include "_terminal.html" %}
+{% endblock %}

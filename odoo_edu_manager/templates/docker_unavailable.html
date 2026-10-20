@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Docker isn't reachable</h1>
+    <p>Every Odoo instance runs as a Docker container, and this app can't talk to Docker right now. Nothing is lost: your instances and their data are still there, and this page goes away as soon as Docker answers.</p>
+  </div>
+  <a class="btn btn-primary" href="">Try again</a>
+</div>
+
+<div class="card">
+  <h2>What to do</h2>
+  {% if permission %}
+  <p>Docker is running, but your user isn't allowed to use it yet:</p>
+  <pre><code>sudo usermod -aG docker $USER</code></pre>
+  <p>Then close the terminal and open a new one (inside WSL, run <code>wsl --shutdown</code> from Windows first), start the app again, and reload this page.</p>
+  {% elif platform == "wsl" %}
+  <p>Docker isn't running in this Linux (WSL). Start it:</p>
+  <pre><code>sudo service docker start</code></pre>
+  <p>then reload this page. If you use <strong>Docker Desktop</strong> instead, start it and make sure <em>Settings &rarr; Resources &rarr; WSL integration</em> is switched on for this distribution.</p>
+  {% elif platform == "desktop" %}
+  <p>Start <strong>Docker Desktop</strong>, wait until it says it is running, then reload this page.</p>
+  {% else %}
+  <p>Docker isn't running. Start it:</p>
+  <pre><code>sudo systemctl start docker</code></pre>
+  <p>then reload this page. If <code>docker</code> isn't installed at all, install Docker Engine first (see the README).</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>What Docker said</h2>
+  <pre><code>{{ reason }}</code></pre>
+</div>
+{% endblock %}

@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Logs — {{ name }}</h1>
+  </div>
+</div>
+
+<div class="tabs">
+  <button type="button" class="tab active" id="tab-btn-odoo" onclick="showTab('odoo')">Odoo logs</button>
+  <button type="button" class="tab" id="tab-btn-activity" onclick="showTab('activity')">Activity log</button>
+  <button type="button" class="tab" id="tab-btn-docker" onclick="showTab('docker')">Docker info</button>
+</div>
+
+<div id="tab-odoo">
+  <span id="conn-status" class="conn-status"><span class="spinner"></span> connecting&hellip;</span>
+  <label class="checkbox-field autoscroll-field">
+    <input type="checkbox" id="autoscroll" checked>Auto-scroll
+  </label>
+  <pre id="log-output" class="log-output"></pre>
+</div>
+
+<div id="tab-activity" style="display:none;">
+  <p class="hint">What the <em>manager app</em> itself did for this instance — image pulls, Enterprise/design-themes clones, and every restore step with its real command output — as opposed to the Odoo logs tab, which only shows what Odoo itself prints.</p>
+  <span id="activity-conn-status" class="conn-status"><span class="spinner"></span> connecting&hellip;</span>
+  <label class="checkbox-field autoscroll-field">
+    <input type="checkbox" id="activity-autoscroll" checked>Auto-scroll
+  </label>
+  <pre id="activity-output" class="log-output"></pre>
+</div>
+
+<div id="tab-docker" style="display:none;">
+  <p class="hint">Container lifecycle info from Docker itself — not part of the process's stdout/stderr, so it won't show up in the Odoo logs tab. Refreshes every 3s while this tab is open.</p>
+  <div class="table-card">
+  <table class="plain">
+    <tr><th>Status</th><td id="di-status">-</td></tr>
+    <tr><th>Exit code</th><td id="di-exit_code">-</td></tr>
+    <tr><th>Error</th><td id="di-error">-</td></tr>
+    <tr><th>OOM killed</th><td id="di-oom_killed">-</td></tr>
+    <tr><th>Restart count</th><td id="di-restart_count">-</td></tr>
+    <tr><th>Started at</th><td id="di-started_at">-</td></tr>
+    <tr><th>Finished at</th><td id="di-finished_at">-</td></tr>
+    <tr><th>Image</th><td id="di-image">-</td></tr>
+    <tr><th>Created</th><td id="di-created">-</td></tr>
+  </table>
+  </div>
+</div>
+
+<script>
+const output = document.getElementById('log-output');
+const status = document.getElementById('conn-status');
+const autoscroll = document.getElementById('autoscroll');
+
+const es = new EventSource("{{ url_for('instance_logs_stream', name=name) }}");
+
+es.onopen = () => { status.textContent = 'live'; status.className = 'conn-status conn-status--live'; };
+es.onerror = () => { status.textContent = 'disconnected — retrying…'; status.className = 'conn-status conn-status--down'; };
+
+es.onmessage = (e) => {
+  output.textContent += JSON.parse(e.data);
+  if (autoscroll.checked) {
+    output.scrollTop = output.scrollHeight;
+  }
+};
+
+const activityOutput = document.getElementById('activity-output');
+const activityStatus = document.getElementById('activity-conn-status');
+const activityAutoscroll = document.getElementById('activity-autoscroll');
+
+const activityEs = new EventSource("{{ url_for('instance_activity_log_stream', name=name) }}");
+activityEs.onopen = () => { activityStatus.textContent = 'live'; activityStatus.className = 'conn-status conn-status--live'; };
+activityEs.onerror = () => { activityStatus.textContent = 'disconnected — retrying…'; activityStatus.className = 'conn-status conn-status--down'; };
+activityEs.onmessage = (e) => {
+  activityOutput.textContent += JSON.parse(e.data);
+  if (activityAutoscroll.checked) {
+    activityOutput.scrollTop = activityOutput.scrollHeight;
+  }
+};
+
+function showTab(tab) {
+  document.getElementById('tab-odoo').style.display = tab === 'odoo' ? '' : 'none';
+  document.getElementById('tab-activity').style.display = tab === 'activity' ? '' : 'none';
+  document.getElementById('tab-docker').style.display = tab === 'docker' ? '' : 'none';
+  document.getElementById('tab-btn-odoo').className = tab === 'odoo' ? 'tab active' : 'tab';
+  document.getElementById('tab-btn-activity').className = tab === 'activity' ? 'tab active' : 'tab';
+  document.getElementById('tab-btn-docker').className = tab === 'docker' ? 'tab active' : 'tab';
+  if (tab === 'docker') {
+    refreshDockerInfo();
+  }
+}
+
+let dockerInfoTimer = null;
+function refreshDockerInfo() {
+  fetch("{{ url_for('instance_docker_info', name=name) }}")
+    .then(r => r.json())
+    .then(data => {
+      for (const key of ['status', 'exit_code', 'error', 'oom_killed', 'restart_count', 'started_at', 'finished_at', 'image', 'created']) {
+        document.getElementById('di-' + key).textContent = (data[key] === null || data[key] === undefined || data[key] === '') ? '-' : data[key];
+      }
+    })
+    .catch(() => {});
+  clearTimeout(dockerInfoTimer);
+  if (document.getElementById('tab-docker').style.display !== 'none') {
+    dockerInfoTimer = setTimeout(refreshDockerInfo, 3000);
+  }
+}
+</script>
+{% endblock %}

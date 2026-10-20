@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Settings</h1>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Open in editor</h2>
+  <p class="hint">Each instance has two buttons: <strong>VS Code</strong> (the desktop app) and <strong>code-server</strong> (in the browser). Both open the same generated multi-root <code>.code-workspace</code> &mdash; Odoo core, Enterprise/themes if included, every addons folder, plus a debugpy attach config when debug is on.</p>
+  <p class="hint">The desktop button is always <code>{{ vscode_example }}</code>, since that is simply what the URL handler is. Only the browser target is configurable, so you can point it at the managed container below, a code-server elsewhere, or a tunnel.</p>
+  {% if wsl_distro %}
+  <p class="hint">This app is running inside WSL (<code>{{ wsl_distro }}</code>), so the desktop button opens the workspace through VS Code's WSL integration: VS Code on Windows needs the <strong>WSL</strong> extension (Microsoft's <code>ms-vscode-remote.remote-wsl</code>). The code-server button needs nothing installed on Windows.</p>
+  {% endif %}
+
+  <form method="post">
+    <div class="field">
+      <label>code-server URL</label>
+      <input type="text" name="code_server_template" value="{{ settings.code_server_template }}"
+             placeholder="http://localhost:8443/?workspace={workspace}">
+      <div class="hint"><code>{workspace}</code> is replaced with the absolute path of the generated workspace file. Leave blank to restore the default. Currently produces: <code>{{ code_server_example }}</code></div>
+    </div>
+    <button type="submit" class="btn btn-primary">Save</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Managed code-server</h2>
+  <p class="hint">A container this app owns, the same way it owns the shared Postgres container. It mounts <code>data/</code> at its own absolute path and uses host networking, so generated workspaces and the debugger's <code>localhost</code> attach both resolve exactly as they do for the desktop app &mdash; no workspace rewriting needed.</p>
+
+  <p>
+    Status:
+    {% if code_server.state == 'running' %}
+      <span class="status-running">running</span> &mdash; <a href="{{ code_server.url }}" target="_blank" rel="noopener">{{ code_server.url }}</a>
+    {% elif code_server.state == 'absent' %}
+      <span class="hint">not created yet</span>
+    {% else %}
+      <span class="status-exited">{{ code_server.state }}</span>
+    {% endif %}
+  </p>
+
+  <div class="actions">
+    <form method="post" action="{{ url_for('start_code_server') }}">
+      <button type="submit" class="btn btn-primary">{% if code_server.state == 'running' %}Restart{% else %}Start code-server{% endif %}</button>
+    </form>
+    {% if code_server.state == 'running' %}
+    <form method="post" action="{{ url_for('install_code_server_extensions') }}">
+      <button type="submit" class="btn">Reinstall Python extensions</button>
+    </form>
+    <form method="post" action="{{ url_for('stop_code_server') }}">
+      <button type="submit" class="btn">Stop</button>
+    </form>
+    {% endif %}
+  </div>
+  <p class="hint">The Python and debugpy extensions are installed automatically when the container is first created &mdash; without them the generated attach config fails with <em>"Configured debug type 'debugpy' is not supported"</em>. Both come from Open VSX, so nothing is sideloaded. Use the reinstall button if they go missing.</p>
+
+  {% if settings.code_server_password %}
+  <p class="hint">Login password: <code>{{ settings.code_server_password }}</code> &mdash; generated automatically and stored in <code>data/settings.json</code>. Host networking exposes code-server on every interface, so it is not optional.</p>
+  {% endif %}
+</div>
+
+<div class="card help">
+  <h2>Notes</h2>
+  <ul>
+    <li><strong>Paths must match.</strong> The workspace file refers to absolute paths on this host. Run code-server directly on this host and they resolve as-is. If you run it in a container, mount the same directories at <em>identical</em> paths &mdash; every addons folder currently lives under the manager's own <code>data/</code> directory, so one mount of that covers them.</li>
+    <li><strong>The debugger.</strong> The attach config points at <code>localhost:&lt;debug port&gt;</code>, which works for local VS Code and for code-server running on this host. From inside a container, <code>localhost</code> is that container &mdash; you would need to attach to the instance container by name on <code>odoo-manager-net</code> instead.</li>
+    <li><strong>If you translate paths</strong> for a container setup, rewrite <code>pathMappings.localRoot</code> as well as <code>folders</code>. <code>localRoot</code> is "as the editor sees it"; leave it pointing at old paths and the workspace opens fine while breakpoints silently never bind.</li>
+  </ul>
+</div>
+{% endblock %}

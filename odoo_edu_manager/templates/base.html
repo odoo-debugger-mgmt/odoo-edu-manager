@@ -1,0 +1,395 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Odoo Edu Manager</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23714B67'/%3E%3Ccircle cx='32' cy='26' r='13' fill='none' stroke='white' stroke-width='6'/%3E%3Crect x='16' y='44' width='32' height='7' rx='3.5' fill='white'/%3E%3C/svg%3E">
+  <script>
+    // Theme API, defined here (in <head>, before app.css and before any
+    // page's own extra_head assets) for two reasons: the stored choice
+    // has to be applied before first paint or it flashes the OS default
+    // and then switches, and a page's extra_head block may need
+    // window.resolvedTheme() immediately, before body — and therefore
+    // base.html's own bottom-of-body script — has run. The theme-toggle
+    // button itself is down there instead, since it doesn't exist yet.
+    const THEME_LABELS = { auto: 'Auto', light: 'Light', dark: 'Dark' };
+    const THEME_ORDER = ['auto', 'light', 'dark'];
+
+    function currentThemeMode() {
+      const attr = document.documentElement.getAttribute('data-theme');
+      return (attr === 'light' || attr === 'dark') ? attr : 'auto';
+    }
+
+    function applyThemeMode(mode) {
+      if (mode === 'auto') {
+        document.documentElement.removeAttribute('data-theme');
+        try { localStorage.removeItem('theme'); } catch (e) {}
+      } else {
+        document.documentElement.setAttribute('data-theme', mode);
+        try { localStorage.setItem('theme', mode); } catch (e) {}
+      }
+      updateThemeToggleButton();
+      // For any page that loads its own theme-sensitive asset outside
+      // app.css's reach, rather than teaching this shared file about
+      // every such asset.
+      document.dispatchEvent(new CustomEvent('themechange'));
+    }
+
+    function cycleTheme() {
+      const next = THEME_ORDER[(THEME_ORDER.indexOf(currentThemeMode()) + 1) % THEME_ORDER.length];
+      applyThemeMode(next);
+    }
+
+    function updateThemeToggleButton() {
+      const btn = document.getElementById('theme-toggle');
+      if (!btn) return;
+      const mode = currentThemeMode();
+      btn.textContent = THEME_LABELS[mode];
+      btn.title = 'Color theme: ' + THEME_LABELS[mode] + ' (click to change)';
+    }
+
+    // What the page is actually rendered in right now: the explicit
+    // choice if there is one, otherwise the OS/browser preference. Global
+    // so any page can read it without duplicating this logic.
+    window.resolvedTheme = function () {
+      const mode = currentThemeMode();
+      if (mode !== 'auto') return mode;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    };
+
+    (function () {
+      try {
+        var stored = localStorage.getItem('theme');
+        if (stored === 'light' || stored === 'dark') {
+          document.documentElement.setAttribute('data-theme', stored);
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <div class="top-loading-bar" id="top-loading-bar"></div>
+  {% set nav_endpoints = {
+    'index': ['index', 'new_instance_form', 'edit_instance_form'],
+    'databases': ['databases'],
+    'settings': ['settings_page'],
+    'help': ['help_page'],
+  } %}
+  <header class="topbar">
+    <a class="topbar-brand" href="{{ url_for('index') }}">
+      <svg class="topbar-mark" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <rect width="64" height="64" rx="14" fill="#714B67"/>
+        <circle cx="32" cy="26" r="13" fill="none" stroke="white" stroke-width="6"/>
+        <rect x="16" y="44" width="32" height="7" rx="3.5" fill="white"/>
+      </svg>
+      Odoo Edu Manager
+    </a>
+    <nav class="topbar-nav">
+      <a href="{{ url_for('index') }}" {% if request.endpoint in nav_endpoints['index'] %}class="active"{% endif %}>Instances</a>
+      <a href="{{ url_for('databases') }}" {% if request.endpoint in nav_endpoints['databases'] %}class="active"{% endif %}>Databases</a>
+      <a href="{{ url_for('settings_page') }}" {% if request.endpoint in nav_endpoints['settings'] %}class="active"{% endif %}>Settings</a>
+      <a href="{{ url_for('help_page') }}" {% if request.endpoint in nav_endpoints['help'] %}class="active"{% endif %}>Help</a>
+    </nav>
+    <button type="button" id="theme-toggle" class="btn btn-ghost btn-sm theme-toggle" onclick="cycleTheme()"></button>
+  </header>
+
+  <div class="page-content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, m in messages %}
+        <div class="flash flash--{{ category if category in ['success', 'error', 'warning', 'info'] else 'info' }}">{{ m }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </div>
+
+  <div class="modal-overlay" id="folder-browser-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Select a folder</h3>
+        <div class="modal-path" id="folder-browser-path">/</div>
+      </div>
+      <ul class="modal-list" id="folder-browser-list"></ul>
+      <div class="modal-branch-row" id="folder-browser-branch-row" style="display:none;">
+        <label for="folder-browser-branch">This is a git repo &mdash; copy it at branch</label>
+        <select id="folder-browser-branch" onchange="fbUpdateModeRow()">
+          <option value="">Use as checked out (no copy)</option>
+        </select>
+      </div>
+      <div class="modal-branch-row" id="folder-browser-worktree-row" style="display:none;">
+        <label class="inline-label"><input type="radio" name="folder-browser-mode" value="worktree" checked> Worktree (live, editable, commit/push-able)</label>
+        <label class="inline-label"><input type="radio" name="folder-browser-mode" value="copy"> Copy (isolated snapshot)</label>
+        <label class="inline-label">New branch from it (optional):
+          <input type="text" id="folder-browser-new-branch" placeholder="leave blank to check out the branch above directly">
+        </label>
+      </div>
+      <div class="modal-footer">
+        <span class="modal-copy-status" id="folder-browser-copy-status"></span>
+        <button type="button" class="btn" onclick="closeFolderBrowser()">Cancel</button>
+        <button type="button" class="btn btn-primary" id="folder-browser-select-btn" onclick="selectCurrentFolder()">Select this folder</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Close any open row-action menu (native <details class="menu">) when
+    // clicking outside it — <details> has no built-in light-dismiss.
+    document.addEventListener('click', (e) => {
+      document.querySelectorAll('details.menu[open]').forEach((el) => {
+        if (!el.contains(e.target)) el.removeAttribute('open');
+      });
+    });
+
+    // Theme toggle: cycles Auto (follow the OS/browser setting) -> Light
+    // -> Dark -> Auto. The functions live in the <head> script above;
+    // this just paints the button now that it actually exists in the DOM.
+    updateThemeToggleButton();
+
+    // Loading feedback for any form submit that causes a real page
+    // navigation (this app has no AJAX for its mutating actions — Create
+    // instance, Start/Stop, Remove, Settings save, etc. are all plain
+    // POSTs). Two things happen immediately on submit: the top bar
+    // animates in, and the button that was actually clicked goes busy so
+    // it can't be double-submitted. Both simply vanish when the response
+    // replaces the document — there's no "done" state to drive since
+    // nothing here is a fetch() with a promise to resolve.
+    //
+    // e.defaultPrevented matters: a destructive form's own
+    // onsubmit="return confirm(...)" runs first (it's a handler on the
+    // form itself — the event's target — so it's already run by the time
+    // this bubble-phase document listener sees the event) and calls
+    // preventDefault() on Cancel. Without this check, clicking Cancel on
+    // "Remove instance?" would still show the bar and disable the button
+    // for an action that never happened.
+    document.addEventListener('submit', (e) => {
+      if (e.defaultPrevented) return;
+      document.getElementById('top-loading-bar').classList.add('active');
+      const btn = e.target.querySelector('button[type="submit"]');
+      if (btn && !btn.disabled) {
+        btn.dataset.busyHtml = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner"></span> Working…';
+        btn.disabled = true;
+        btn.setAttribute('data-busy', '');
+      }
+    });
+
+    // If the browser restores this exact page from bfcache (clicking Back
+    // after a submit, typically) rather than reloading it, the disabled
+    // button and active bar would otherwise be stuck that way forever —
+    // nothing re-runs to clear them, since no navigation actually happened.
+    window.addEventListener('pageshow', (e) => {
+      if (!e.persisted) return;
+      document.getElementById('top-loading-bar').classList.remove('active');
+      document.querySelectorAll('button[data-busy]').forEach((btn) => {
+        btn.disabled = false;
+        btn.innerHTML = btn.dataset.busyHtml || btn.innerHTML;
+        btn.removeAttribute('data-busy');
+      });
+    });
+
+    // Connect-type links (dashboard's Open, Users page's Connect as
+    // admin/Connect as <user>) start disabled and stay that way until
+    // dm.instance_ready() confirms Odoo itself is answering — a running
+    // container is necessary but not sufficient, and clicking one during
+    // that gap previously just got a connection-refused or a half-booted
+    // page instead of a login screen. Pages that have none of these
+    // elements (most of them) pay for none of this — the querySelectorAll
+    // below simply finds nothing and the rest never runs.
+    (function () {
+      const els = Array.from(document.querySelectorAll('[data-connect-instance]'));
+      if (!els.length) return;
+
+      const byInstance = {};
+      els.forEach((el) => {
+        const name = el.dataset.connectInstance;
+        (byInstance[name] = byInstance[name] || []).push(el);
+        setConnectDisabled(el, true);
+      });
+
+      function setConnectDisabled(el, disabled) {
+        el.classList.toggle('is-disabled', disabled);
+        el.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+        el.title = disabled ? 'Waiting for the instance to finish starting…' : '';
+        // Stash the original label the first time this goes disabled, so
+        // it can come back exactly as it was ("Open", "Connect as admin",
+        // ...) once ready — rather than assuming what to restore to.
+        if (disabled) {
+          if (el.dataset.readyHtml === undefined) el.dataset.readyHtml = el.innerHTML;
+          el.innerHTML = '<span class="spinner"></span> ' + el.dataset.readyHtml;
+        } else if (el.dataset.readyHtml !== undefined) {
+          el.innerHTML = el.dataset.readyHtml;
+        }
+      }
+
+      // Backs off (x1.5/miss, capped at 30s) rather than a flat interval —
+      // right after clicking Start, an instance typically becomes ready
+      // within a few polls, so those stay quick; but an instance that's
+      // simply stopped and has no reason to become ready soon would
+      // otherwise get hit every 3s for as long as the tab stays open, for
+      // every stopped instance, forever. Confirmed that's exactly what
+      // happens without this: six stopped instances on the dashboard ran
+      // up 357 requests in a few minutes of the tab just sitting open.
+      function poll(name, wait) {
+        wait = wait || 1500;
+        fetch('/instances/' + encodeURIComponent(name) + '/ready')
+          .then((r) => r.json())
+          .then((data) => {
+            const ready = !!data.ready;
+            byInstance[name].forEach((el) => setConnectDisabled(el, !ready));
+            if (!ready) setTimeout(() => poll(name, Math.min(wait * 1.5, 30000)), wait);
+          })
+          .catch(() => setTimeout(() => poll(name, wait), wait));
+      }
+
+      Object.keys(byInstance).forEach((name) => poll(name));
+    })();
+
+    let _fbTargetId = null;
+    let _fbCurrentPath = null;
+    let _fbIsGitRepo = false;
+    let _fbAllowWorktree = false;
+
+    function openFolderBrowser(targetTextareaId, startPath, allowWorktree) {
+      _fbTargetId = targetTextareaId;
+      _fbAllowWorktree = !!allowWorktree;
+      document.getElementById('folder-browser-overlay').classList.add('open');
+      fbNavigate(startPath || '');
+    }
+
+    function closeFolderBrowser() {
+      document.getElementById('folder-browser-overlay').classList.remove('open');
+    }
+
+    function fbNavigate(path) {
+      fetch('/api/browse-dirs?path=' + encodeURIComponent(path))
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) { return; }
+          _fbCurrentPath = data.path;
+          document.getElementById('folder-browser-path').textContent = data.path;
+          const list = document.getElementById('folder-browser-list');
+          list.innerHTML = '';
+          if (data.parent) {
+            const up = document.createElement('li');
+            up.className = 'up';
+            up.textContent = '.. (up)';
+            up.onclick = () => fbNavigate(data.parent);
+            list.appendChild(up);
+          }
+          if (data.dirs.length === 0) {
+            const empty = document.createElement('li');
+            empty.className = 'modal-empty';
+            empty.textContent = 'No subfolders here.';
+            list.appendChild(empty);
+          }
+          data.dirs.forEach(name => {
+            const li = document.createElement('li');
+            li.textContent = name;
+            li.onclick = () => fbNavigate(data.path.replace(/\/$/, '') + '/' + name);
+            list.appendChild(li);
+          });
+          fbSetGitRepo(data.is_git_repo);
+        });
+    }
+
+    // Shows/hides the branch picker for the folder currently being
+    // browsed, and lazily loads its branches — most browsed folders
+    // aren't git repos, so this avoids an extra request for those.
+    function fbSetGitRepo(isGitRepo) {
+      _fbIsGitRepo = !!isGitRepo;
+      const row = document.getElementById('folder-browser-branch-row');
+      const select = document.getElementById('folder-browser-branch');
+      document.getElementById('folder-browser-copy-status').textContent = '';
+      select.innerHTML = '<option value="">Use as checked out (no copy)</option>';
+      fbUpdateModeRow();
+      if (!_fbIsGitRepo) {
+        row.style.display = 'none';
+        return;
+      }
+      row.style.display = '';
+      fetch('/api/git-branches?path=' + encodeURIComponent(_fbCurrentPath))
+        .then(r => r.json())
+        .then(data => {
+          (data.branches || []).forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name === data.current ? `${name} (current)` : name;
+            select.appendChild(opt);
+          });
+        });
+    }
+
+    // Shown only when this field opted in (_fbAllowWorktree — true only for
+    // the addons-folders Browse button) AND a real branch is selected
+    // ("Use as checked out" calls neither backend route, so there's no
+    // mode to pick).
+    function fbUpdateModeRow() {
+      const branch = document.getElementById('folder-browser-branch').value;
+      document.getElementById('folder-browser-worktree-row').style.display =
+        (_fbAllowWorktree && branch) ? '' : 'none';
+    }
+
+    // A textarea holds a list (addons paths, one per line) so a pick is
+    // appended; a plain input holds exactly one path (the Enterprise
+    // folder) so a pick replaces it.
+    function fbAppendPath(path) {
+      const target = document.getElementById(_fbTargetId);
+      if (!target) return;
+      if (target.tagName !== 'TEXTAREA') {
+        target.value = path;
+        return;
+      }
+      const existing = target.value.split('\n').map(s => s.trim()).filter(Boolean);
+      if (!existing.includes(path)) {
+        existing.push(path);
+      }
+      target.value = existing.join('\n');
+    }
+
+    function selectCurrentFolder() {
+      if (!_fbCurrentPath) { closeFolderBrowser(); return; }
+      const branch = _fbIsGitRepo ? document.getElementById('folder-browser-branch').value : '';
+      if (!branch) {
+        fbAppendPath(_fbCurrentPath);
+        closeFolderBrowser();
+        return;
+      }
+      // A branch was picked: either copy the repo at that branch (isolating
+      // the instance from whichever branch the working copy itself has
+      // checked out, now or later) or — only where this field opted in —
+      // create a real git worktree of it (a live, independently checked
+      // out branch you can edit and commit/push from on the host). Either
+      // way use the returned path instead of the working copy browsed.
+      const useWorktree = _fbAllowWorktree &&
+        document.querySelector('input[name="folder-browser-mode"]:checked').value === 'worktree';
+      const newBranch = useWorktree ? document.getElementById('folder-browser-new-branch').value.trim() : '';
+      const endpoint = useWorktree ? '/api/worktree-addons-repo' : '/api/copy-addons-repo';
+      const btn = document.getElementById('folder-browser-select-btn');
+      const status = document.getElementById('folder-browser-copy-status');
+      const sourcePath = _fbCurrentPath;
+      btn.disabled = true;
+      status.textContent = newBranch
+        ? `Creating branch '${newBranch}' from ${branch}…`
+        : (useWorktree ? `Creating worktree at ${branch}…` : `Copying at ${branch}…`);
+      let body = 'path=' + encodeURIComponent(sourcePath) + '&branch=' + encodeURIComponent(branch);
+      if (newBranch) body += '&new_branch=' + encodeURIComponent(newBranch);
+      fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body,
+      })
+        .then(r => r.json())
+        .then(data => {
+          btn.disabled = false;
+          if (data.error) { status.textContent = data.error; return; }
+          fbAppendPath(data.path);
+          closeFolderBrowser();
+        })
+        .catch(() => { btn.disabled = false; status.textContent = (useWorktree ? 'Worktree creation' : 'Copy') + ' failed.'; });
+    }
+  </script>
+</body>
+</html>

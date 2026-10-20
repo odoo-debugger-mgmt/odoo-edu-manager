@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Users — {{ name }}</h1>
+    <p>"Connect as" opens the instance in a new tab, already logged in as that user — no password needed. This works because the manager app has direct access to the instance's container and database; it mints a valid session the same way Odoo itself would after a real login.</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-primary" href="{{ url_for('connect_as_admin', name=name) }}" target="_blank" data-connect-instance="{{ name }}">Connect as admin</a>
+  </div>
+</div>
+
+{% if not users %}
+<div class="table-card">
+  <div class="empty-state"><p>No active users found (or the database isn't reachable yet).</p></div>
+</div>
+{% else %}
+<div class="table-card">
+<table>
+  <tr>
+    <th>Name</th><th>Login</th><th class="col-actions">Actions</th>
+  </tr>
+  {% for u in users %}
+  <tr>
+    <td>{{ u.name }}</td>
+    <td>{{ u.login }}</td>
+    <td class="col-actions">
+      <a class="btn btn-sm btn-primary" href="{{ url_for('connect_as', name=name, uid=u.id) }}" target="_blank" data-connect-instance="{{ name }}">Connect as</a>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% endif %}
+{% endblock %}

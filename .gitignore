@@ -1,0 +1,17 @@
+venv/
+__pycache__/
+*.pyc
+
+# Cloned Odoo/Enterprise/design-themes source trees, uploaded backup zips,
+# activity logs, generated VS Code workspaces, and the Docker Hub version
+# cache — all regenerated on demand by the app itself, and uploads in
+# particular can contain real customer database backups that must never
+# be committed.
+data/
+
+.pytest_cache/
+
+# Build artifacts from `pip install` / `python -m build`.
+build/
+dist/
+*.egg-info/

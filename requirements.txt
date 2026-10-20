@@ -1,0 +1,7 @@
+flask
+flask-sock
+docker
+requests
+
+# mcp_server.py (agent access). Not needed to run the web app itself.
+mcp>=2,<3

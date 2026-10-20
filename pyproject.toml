@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "odoo-edu-manager"
+version = "0.2.0"
+description = "Manage Docker-based Odoo instances"
+requires-python = ">=3.10"
+dependencies = [
+    "flask",
+    "flask-sock",
+    "docker",
+    "requests",
+    # mcp_server.py (agent access)
+    "mcp>=2,<3",
+]
+
+[project.scripts]
+odoo-edu-manager = "odoo_edu_manager.app:main"
+odoo-edu-manager-mcp = "odoo_edu_manager.mcp_server:main"
+
+[tool.setuptools]
+packages = ["odoo_edu_manager"]
+
+# Templates and static assets are found relative to the package at runtime
+# (Flask(__name__)), so they have to ship inside the wheel rather than as
+# separate data files.
+[tool.setuptools.package-data]
+odoo_edu_manager = ["templates/*.html", "static/*"]

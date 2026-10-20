@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>New instance</h1>
+    <p>Configure and create a new Odoo instance.</p>
+  </div>
+</div>
+
+<form method="post" action="{{ url_for('update_available_versions') }}" class="field">
+  <button type="submit" class="btn btn-browse">Update available versions</button>
+  <span class="hint">
+    {% if versions_fetched_at %}Last fetched from Docker Hub: {{ versions_fetched_at }}.{% else %}Not fetched from Docker Hub yet — showing locally pulled versions only.{% endif %}
+  </span>
+</form>
+
+{% set editing = false %}
+{% set form_action = url_for('create_instance') %}
+{% include "_instance_form.html" with context %}
+{% endblock %}

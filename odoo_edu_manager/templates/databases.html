@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Databases</h1>
+    <p>Every database in the shared Postgres — including ones left behind after an instance was removed without "also delete data", or an orphaned restore target. "In use by" shows the instance currently pinned to that database, if any.</p>
+  </div>
+</div>
+
+{% if not databases %}
+<div class="table-card">
+  <div class="empty-state"><p>No databases found.</p></div>
+</div>
+{% else %}
+<div class="table-card">
+<table>
+  <tr>
+    <th>Name</th><th>Size</th><th>In use by</th><th class="col-actions">Actions</th>
+  </tr>
+  {% for d in databases %}
+  <tr>
+    <td>{{ d.name }}</td>
+    <td>{{ d.size }}</td>
+    <td>{% if d.instance %}<a href="{{ url_for('index') }}">{{ d.instance }}</a>{% else %}<span class="extras-empty">— orphaned</span>{% endif %}</td>
+    <td class="col-actions">
+      <form class="inline" method="post" action="{{ url_for('delete_database', name=d.name) }}" onsubmit="return confirm('Delete database {{ d.name }}?{{ ' It is currently used by instance ' + d.instance + ' — deleting it will break that instance until you restore or edit it.' if d.instance else '' }} This cannot be undone.');">
+        <button class="btn btn-sm btn-danger">Delete</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% endif %}
+{% endblock %}

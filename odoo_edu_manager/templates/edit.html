@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Edit instance — {{ instance.name }}</h1>
+    <p>Saving recreates this instance's container with the new settings. Its database (in the shared Postgres) and its filestore (a persistent data volume) are kept — only the container itself is replaced.</p>
+  </div>
+</div>
+
+{% if revisions %}
+<div class="card">
+  <h2>Repository revisions</h2>
+  <p class="hint">What this instance is actually running right now. "Refresh" re-syncs a "Latest"-tracking repo to its branch's current tip &mdash; shared with every other instance of this version tracking Latest, and an already-running container won't pick it up until it's restarted. Pin a repo to a commit sha in the form below to stop it from moving on refresh.</p>
+  <table class="plain">
+    <tr><th>Repo</th><th>Tracking</th><th>Current commit</th><th></th></tr>
+    {% for row in revisions %}
+    <tr>
+      <td>{{ row.repo.replace('_', ' ') | capitalize }}</td>
+      <td>{% if row.pinned %}Pinned{% else %}Latest{% endif %}</td>
+      <td>
+        {% if row.current_sha %}
+        <a href="{{ row.url }}/commit/{{ row.current_sha }}" target="_blank" rel="noopener"><code>{{ row.current_sha[:10] }}</code></a>
+        {% else %}
+        <span class="hint">not cloned yet</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if row.pinned %}
+        <span class="hint">pinned</span>
+        {% else %}
+        <form method="post" action="{{ url_for('refresh_instance_revision', name=instance.name) }}" style="display:inline">
+          <input type="hidden" name="repo" value="{{ row.repo }}">
+          <button type="submit" class="btn btn-sm">Refresh</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{% set editing = true %}
+{% set form_action = url_for('edit_instance', name=instance.name) %}
+{% include "_instance_form.html" with context %}
+{% endblock %}

@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Help</h1>
+    <p>This app manages multiple isolated Odoo instances as Docker containers, each with its own port, database and addons. Everything below is what's currently implemented.</p>
+  </div>
+</div>
+<div class="help">
+
+<h2>Instances dashboard</h2>
+<p>The <a href="{{ url_for('index') }}">home page</a> lists every instance this app manages, with:</p>
+<ul>
+  <li><strong>Name</strong> &mdash; the instance name you chose (also its default database name).</li>
+  <li><strong>Version</strong> &mdash; the Odoo version it's running.</li>
+  <li><strong>Extras</strong> &mdash; <span class="pill pill-enterprise"><span class="pill-dot"></span>Enterprise</span> if Odoo Enterprise addons are mounted in, a dash otherwise. Design themes and VS Code debugging aren't shown here any more since every instance gets both unconditionally — see below.</li>
+  <li><strong>Port</strong> &mdash; a link opening the instance directly, on its own hostname (see <a href="#hostnames">Hostnames</a>).</li>
+  <li><strong>DB</strong> &mdash; the database it's pinned to.</li>
+  <li><strong>Status</strong> &mdash; <span class="status-running">running</span> or <span class="status-exited">exited</span>.</li>
+  <li><strong>Restore</strong> &mdash; live progress of a backup restore, if one was requested.</li>
+</ul>
+<p>Per-instance actions:</p>
+<ul>
+  <li><strong>Start / Stop</strong> &mdash; without deleting anything. Starting also re-attaches the instance to the shared network if that was recreated while it was stopped.</li>
+  <li><strong>Logs</strong> &mdash; live <code>docker logs</code> stream (below).</li>
+  <li><strong>Shell</strong> &mdash; a real <code>odoo shell -d &lt;db&gt;</code> inside the container, in the browser. <code>env</code> is bound to that database, exactly as via <code>docker exec</code>.</li>
+  <li><strong>Terminal</strong> &mdash; a plain bash session inside the container: files, processes, ad-hoc commands. Not the Python REPL; that's Shell.</li>
+  <li><strong>Users</strong> &mdash; lists the instance's users with a <strong>Connect as</strong> button per user.</li>
+  <li><strong>Connect as admin</strong> &mdash; opens the instance already logged in, no password. The app has direct access to the container and database, so it mints a valid session the same way Odoo does after a real login.</li>
+  <li><strong>VS Code</strong> / <strong>code-server</strong> &mdash; open the instance's generated workspace in the desktop app or in the browser. See <a href="#editors">Editors</a>.</li>
+  <li><strong>Edit</strong> &mdash; change settings and recreate the container (below).</li>
+  <li><strong>Remove</strong> &mdash; deletes the container, after confirming. Leave "also delete data" unchecked to keep the filestore volume (e.g. to recreate the instance later); tick it to delete the filestore too, which cannot be undone.</li>
+  <li><strong>Retry restore</strong> &mdash; shown when a backup restore failed; runs it again.</li>
+</ul>
+
+<h2>Creating an instance</h2>
+<p>From <a href="{{ url_for('new_instance_form') }}">+ New instance</a> you can configure:</p>
+
+<h3>Instance name</h3>
+<p>Used as the container name (<code>odoo-inst-&lt;name&gt;</code>) and, unless overridden, the database name.</p>
+
+<h3>Odoo version</h3>
+<p>Pick a version already pulled locally, or type any other tag (e.g. <code>17.0</code>) &mdash; it's pulled automatically the first time it's used.</p>
+
+<h3>Addons folders</h3>
+<p>One or more absolute host paths to your own custom addon modules, one per line. Each is mounted separately (<code>/mnt/extra-addons-0</code>, <code>/mnt/extra-addons-1</code>, &hellip;) and added to the container's <code>--addons-path</code>.</p>
+<p><strong>Browse</strong> opens a folder picker. If the folder you pick is a git repository, you also choose a <strong>branch</strong> and how to use it: <strong>Copy</strong> clones the repo locally and checks that branch out into its own isolated copy under the data directory, and mounts <em>the copy</em> &mdash; your working tree is never touched, you can run one instance per branch of the same repo side by side, and the copy is cached per repo and branch, so picking the same branch again is instant, but it's a frozen snapshot: nothing commits or pushes from it, and nothing ever refreshes it.</p>
+<p><strong>Worktree</strong> is the other choice once you pick a branch: instead of copying the repo, it creates a real <code>git worktree</code> &mdash; its own independent checkout of that branch, sharing history with your working copy but editable and committable on its own. Point the instance at it, edit the files on disk as normal, and the running instance picks it up exactly like any other addons folder &mdash; then <code>git commit</code>/<code>git push</code> from the worktree directory itself, in a terminal, same as any other branch checkout. Git won't let the same branch be checked out in two places at once: if the branch you pick is already checked out in the repo you browsed to (or in another worktree of it &mdash; common, since a real checkout is often permanently parked on one branch), you'll get an error naming where, <em>unless</em> you also fill in the optional <strong>new branch</strong> field &mdash; that forks a brand-new branch off the one you picked instead of checking the picked one out directly, which always works, including off the repo's own current branch. Worktrees aren't cleaned up automatically: removing an instance leaves the worktree directory in place (so you never lose uncommitted work), and deleting it later needs <code>git worktree remove</code> run from the original repo, not just deleting the folder. If the original repo is later moved or deleted, every worktree made from it stops working.</p>
+<p><strong>Important:</strong> Odoo requires that a directory's <em>immediate</em> children be actual modules &mdash; each with an <code>__init__.py</code> and a manifest (<code>__manifest__.py</code>/<code>__openerp__.py</code>). If none of a folder's direct children qualify, Odoo refuses the whole path with <code>the path '...' is not a valid addons directory</code>. Point each line at the folder that directly contains your modules, not a parent grouping several projects.</p>
+
+<h3>Include Odoo Enterprise</h3>
+<p>Unticked by default, so a new instance is Community and needs no GitHub access. When ticked, Enterprise is mounted at <code>/mnt/enterprise-addons</code> and prepended to <code>--addons-path</code>. Where it comes from depends on the next field:</p>
+<ul>
+  <li><strong>Enterprise folder left blank</strong> &mdash; the app clones <code>odoo/enterprise</code> over SSH on the branch matching the version, the first time that version is needed, and caches it (<code>enterprise/&lt;version&gt;/</code> in the data directory) for later instances. Needs an SSH key on this machine with access to that private repo.</li>
+  <li><strong>Enterprise folder set</strong> &mdash; a local Enterprise checkout is used instead, for when you don't have SSH access to the repo. It works like addons folders: if it's a git repo you pick a branch, and that branch is copied out and used, leaving your checkout untouched. Mounted read-only.</li>
+</ul>
+<p>Either way you still activate your subscription code from <strong>Settings &rarr; Activate</strong> inside the instance.</p>
+
+<h3>Design themes (automatic)</h3>
+<p>Every instance also gets <code>odoo/design-themes</code>, cloned on the matching branch and cached per version (<code>design-themes/&lt;version&gt;/</code>) &mdash; no checkbox. It's a public repository, cloned over HTTPS, so unlike Enterprise it needs no GitHub account or SSH key. Mounted at <code>/mnt/design-themes-addons</code>. If the version has no matching branch, or the clone fails (no network), it's skipped with a warning and the instance is still created &mdash; check the instance's <strong>Logs</strong> &rarr; Activity log tab if you need to know whether it succeeded.</p>
+
+<h3 id="repo-revisions">Repository revisions</h3>
+<p>Enterprise and design themes are git clones, cached per version and shared across every instance of that version &mdash; by default each just tracks its branch's tip <em>as of whenever it was first cloned</em>. Odoo's own core addons normally come from the <code>odoo:&lt;version&gt;</code> Docker image instead (see below), but on versions where the app can safely swap them, core is a third git-sourced repo working the same way. This field lets you control exactly what each one resolves to:</p>
+<ul>
+  <li><strong>Left blank ("Latest")</strong> &mdash; tracks the branch normally. Docker Hub's official images are <em>not</em> rebuilt on every upstream commit, and a shared branch clone isn't either, once cached &mdash; so "Latest" means "whatever the tip was last time this was fetched," not "always current." The Edit page shows the exact commit each repo is on right now, with a <strong>Refresh</strong> button that re-fetches the branch's current tip on demand. Refreshing updates the shared cache for <em>every</em> instance of that version tracking Latest, not just the one you clicked Refresh on &mdash; and an already-running container won't pick up the change until it's stopped and started again (Edit's Save &amp; recreate does this, or Stop then Start).</li>
+  <li><strong>A commit sha</strong> &mdash; pins that repo to exactly that commit, cached separately from the shared "Latest" clone, so pinning one instance never moves what any other instance sees. A pinned repo has no Refresh button on the Edit page (there'd be nothing for it to do); clear the field back to blank and save to return it to tracking Latest.</li>
+</ul>
+<p><strong>Odoo core</strong> only appears as a git-sourced option on versions listed in the field's hint text ({{ core_revision_versions|join(', ') }} at the time of writing) &mdash; entered here it's ignored on every other version. This exists because of a real failure mode: a git branch can reference addons files (new modules, changed code) that simply aren't in the matching Docker image yet, since the image isn't rebuilt on every commit. Cloning core addons fresh and shadow-mounting them over the image's own copy fixes that, but it's delicate &mdash; Odoo's internal module layout has genuinely changed between major versions in ways that broke this on a second version tested, so it's deliberately limited to versions confirmed to work rather than turned on everywhere. The Docker image itself is still used as the Python runtime either way; only the addons source changes.</p>
+
+<h3>Database backup (.zip)</h3>
+<p>Optional. If provided, it's restored the way Odoo's own Database Manager does it internally, run directly rather than through an HTTP upload:</p>
+<ul>
+  <li>Extract the zip and read <code>dump.sql</code> plus any <code>filestore/</code> it contains.</li>
+  <li>Create an empty database with the encoding/collation Odoo itself uses.</li>
+  <li>Load <code>dump.sql</code> via <code>psql</code>.</li>
+  <li>Copy the filestore (attachments, documents, images) into place if the zip had one &mdash; some backups are exported without.</li>
+</ul>
+<p>This runs in the background; the <strong>Restore</strong> column shows each step: <code>waiting</code> &rarr; <code>extracting backup</code> &rarr; <code>creating database</code> &rarr; <code>loading database dump</code> &rarr; <code>copying filestore (N files)</code> &rarr; <code>done</code>/<code>error</code>. Going direct sidesteps a real problem with large backups through Odoo's dev server, which could drop the connection mid-upload or, with debug mode, deadlock. Progress is kept in memory only &mdash; it resets if the manager restarts (restored data is unaffected).</p>
+
+<h3>Database name</h3>
+<p>Optional override &mdash; defaults to the instance name, or to the original database's name if the backup is a standard Odoo export with a <code>manifest.json</code>.</p>
+
+<h3>Port</h3>
+<p>Auto-suggested as the next free port from 8069, checking other containers' bound ports (including stopped ones, whose bindings persist) and the OS. You can override it. If a start later fails because the port is taken, the error names which container holds it.</p>
+
+<h3>Extra CLI arguments</h3>
+<p>Extra flags passed straight to the <code>odoo</code> command inside the container, parsed as a shell would (quote values with spaces). For example:</p>
+<pre>-i pos_modifiers --limit-time-real 0 --limit-time-cpu 0 --max-cron-threads 0 --log-handler odoo.addons.base.models.ir_attachment:WARNING --with-demo --dev=all</pre>
+<p>Appended after the app's own <code>--database</code> and <code>--addons-path</code>, so they can override them.</p>
+
+<h3>VS Code debugging (automatic)</h3>
+<p>Every instance runs Odoo under <code>debugpy</code> on an extra host port (auto-suggested, mapped from the container's 5678) &mdash; no checkbox, same as design themes above:</p>
+<ul>
+  <li><code>debugpy</code> is installed with <code>pip3 install --user</code> each time the container starts, into the persistent data volume, so it's usually already there on restarts. Adds a few seconds to startup.</li>
+  <li>The debugger listens without blocking: Odoo serves HTTP immediately, and attaching is optional and can happen any time.</li>
+</ul>
+
+<h2 id="editors">Editors: VS Code and code-server</h2>
+<p>Both buttons open the same generated multi-root <code>.code-workspace</code>:</p>
+<ul>
+  <li><strong>Folders:</strong> the core Odoo addons (copied out of the instance's own <code>odoo:&lt;version&gt;</code> image via a throwaway container &mdash; exact, and needs no network), Enterprise and design-themes if included, and every custom addons folder.</li>
+  <li><strong>If debug is on</strong>, a ready-made "Attach" launch config (type <code>debugpy</code>) pointing at the debug port, with path mappings so breakpoints in any of those folders &mdash; core included &mdash; match the code actually running in the container.</li>
+  <li>The core extraction is cached per version, like Enterprise and themes.</li>
+</ul>
+<p><strong>VS Code</strong> opens it in the desktop app through the <code>vscode://file/</code> URI handler (registered by default when VS Code is installed).</p>
+<p><strong>code-server</strong> opens it in the browser. By default this targets a code-server container the app manages itself, started from <a href="{{ url_for('settings_page') }}">Settings</a>:</p>
+<ul>
+  <li>It mounts the data directory at the same absolute path it has on the host, so the workspace's paths and path mappings resolve unchanged.</li>
+  <li>The Python and debugpy extensions are installed automatically when the container is created (from Open VSX). Without them the attach config fails with <em>Configured debug type 'debugpy' is not supported</em>; Settings has a reinstall button if they go missing.</li>
+  <li>A login password is generated and shown on Settings. On native Linux the container uses host networking, which exposes it on every interface, so the password is not optional.</li>
+  <li>On Docker Desktop (macOS, Windows) host networking doesn't reach your machine, so the app publishes a port instead and points the debugger at <code>host.docker.internal</code> rather than <code>localhost</code>. Detected automatically from the daemon.</li>
+</ul>
+<p>Settings also lets you point the code-server button at a code-server running elsewhere (a template with <code>{workspace}</code> substituted). If you do, the notes on that page about matching paths and the debugger's <code>localhost</code> apply.</p>
+
+<h2>Editing an instance</h2>
+<p><strong>Edit</strong> lets you change version, addons folders, Enterprise options, database name, port, extra arguments, debug and repository revisions.</p>
+<ul>
+  <li>Saving <strong>recreates the container</strong> (stop, remove, run again) &mdash; most of these can't change on a live container.</li>
+  <li>The database (in the shared Postgres) and the filestore (a named Docker volume at <code>/var/lib/odoo</code>) both survive.</li>
+  <li>Design themes are re-resolved for the new version automatically.</li>
+  <li>A <strong>Repository revisions</strong> card at the top shows exactly what commit this instance is running for each git-sourced repo, with a per-repo <strong>Refresh</strong> button &mdash; see <a href="#repo-revisions">Repository revisions</a> above for what Latest vs. a pinned sha means.</li>
+</ul>
+
+<h2>Skipping the database selector</h2>
+<p>Every instance starts with Odoo's <code>--database=&lt;db&gt;</code>, so visiting it goes straight to <code>/web/login</code> instead of the multi-database selector &mdash; even before that database exists.</p>
+
+<h2>Live logs</h2>
+<p>Each instance's <strong>Logs</strong> page streams <code>docker logs --follow</code> over Server-Sent Events: recent history first, then new lines as they happen, with a connection indicator (reconnects on container restart) and an auto-scroll toggle.</p>
+
+<h2>Shared infrastructure</h2>
+<ul>
+  <li><code>odoo-manager-db</code> &mdash; one <code>postgres:17</code> container for all instances, created on first use.</li>
+  <li><code>odoo-manager-net</code> &mdash; a bridge network connecting every instance to it.</li>
+  <li>Each instance gets its own database inside that Postgres, so instances stay isolated even though the server is shared.</li>
+</ul>
+
+<h2>Databases page</h2>
+<p>The <a href="{{ url_for('databases') }}">Databases</a> page lists every database in the shared Postgres, including orphans &mdash; left behind by removing an instance without "also delete data", or by a failed restore. <strong>Delete</strong> drops one outright (terminating open connections first). Deleting a database an instance still points at breaks that instance until you restore into it or edit it to point elsewhere.</p>
+
+<h2>Data directory</h2>
+<p>Clones, addons copies, uploaded backups, generated workspaces, activity logs and <code>settings.json</code> live in one directory: <code>~/.local/share/odoo-edu-manager</code> when installed as a package, or <code>data/</code> inside a git checkout, or wherever <code>ODOO_EDU_MANAGER_DATA</code> points. Everything in it is a cache or regenerated on demand; it's safe to delete between runs. There is no database for the manager itself &mdash; each instance's configuration is stored as labels on its container.</p>
+
+<h2 id="agent">Agent access (MCP)</h2>
+<p>The manager is also available to agents over MCP: <code>odoo-edu-manager-mcp</code> (installed) or <code>python -m odoo_edu_manager.mcp_server</code> (checkout). For now it exposes one tool, <code>list_instances</code>. Destructive operations (removing instances, dropping databases, restores) are deliberately not exposed.</p>
+
+<h2 id="hostnames">Hostnames, and running on macOS or Windows</h2>
+<p>Instances are opened on their own hostname &mdash; <code>&lt;db&gt;.localhost:&lt;port&gt;</code>. That gives every instance a separate cookie jar (cookies ignore ports, so ports alone would not). Linux resolves any <code>*.localhost</code> name to loopback; macOS and Windows only resolve <code>localhost</code> itself, so there you start the app with a base domain whose wildcard does resolve:</p>
+<pre>ODOO_EDU_MANAGER_BASE_DOMAIN=lvh.me odoo-edu-manager</pre>
+<p>and the instance links (Open, Connect as) use <code>&lt;db&gt;.lvh.me</code>. The manager itself stays at <code>localhost:5001</code>. <code>lvh.me</code> is a public domain that resolves to 127.0.0.1 &mdash; convenient, but somebody else's DNS. Windows means WSL2; native Windows is not supported (the in-browser Shell and Terminal are built on POSIX ptys).</p>
+
+<h2>Known limitations</h2>
+<ul>
+  <li>No authentication on this manager UI &mdash; anyone who can reach its port can create, stop or remove instances, drop databases and run code. It binds <code>127.0.0.1</code> for that reason; don't put it on <code>0.0.0.0</code> on a shared network.</li>
+  <li>Runs on Flask's development server &mdash; fine locally, not for exposing beyond this machine.</li>
+  <li>Restore progress and anything beyond Docker labels isn't persisted across a manager restart.</li>
+  <li>The app has been run on Linux and, via a container, on the Ubuntu userland WSL2 uses. The macOS-specific code paths are tested, but it has not been run on a Mac.</li>
+</ul>
+</div>
+{% endblock %}
